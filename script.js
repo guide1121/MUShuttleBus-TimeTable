@@ -35,10 +35,42 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = document.getElementById("result-modal");
     const closeBtn = document.querySelector(".close-btn");
 
+    // Initialize Custom Dropdowns
+    const originDropdown = document.getElementById("origin-dropdown");
+    const destinationDropdown = document.getElementById("destination-dropdown");
+
+    setupDropdownToggle(originDropdown);
+    setupDropdownToggle(destinationDropdown);
+
+    // Global click to close dropdowns
+    window.addEventListener("click", (e) => {
+      if (!e.target.closest(".custom-dropdown")) {
+        document.querySelectorAll(".custom-dropdown").forEach((d) => {
+          d.classList.remove("open");
+        });
+      }
+    });
+
+    function setupDropdownToggle(dropdown) {
+      if (!dropdown) return;
+      const trigger = dropdown.querySelector(".dropdown-trigger");
+      trigger.addEventListener("click", () => {
+        if (dropdown.classList.contains("disabled")) return;
+
+        const isOpen = dropdown.classList.contains("open");
+        // Close others
+        document.querySelectorAll(".custom-dropdown").forEach((d) => {
+          d.classList.remove("open");
+        });
+
+        if (!isOpen) dropdown.classList.add("open");
+      });
+    }
+
     // Initialize
     fetchCSV();
 
-    // Event Listeners
+    // Event Listeners (Hidden Selects still need to work for back-compatibility)
     originSelect.addEventListener("change", handleOriginChange);
     searchBtn.addEventListener("click", calculateNextBus);
 
@@ -51,14 +83,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 300);
       };
 
-      window.onclick = function (event) {
+      // Also close modal when clicking outside of it
+      window.addEventListener("click", function (event) {
         if (event.target == modal) {
           modal.classList.remove("show");
           setTimeout(() => {
             modal.style.display = "none";
           }, 300);
         }
-      };
+      });
     }
 
     // Functions
@@ -105,21 +138,59 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
+      const originList = Array.from(origins).sort();
+
+      // Update hidden select
       originSelect.innerHTML =
         '<option value="" disabled selected>เลือกจุดเริ่มต้น</option>';
-      Array.from(origins)
-        .sort()
-        .forEach((origin) => {
-          const option = document.createElement("option");
-          option.value = origin;
-          option.textContent = origin;
-          originSelect.appendChild(option);
+      originList.forEach((origin) => {
+        const option = document.createElement("option");
+        option.value = origin;
+        option.textContent = origin;
+        originSelect.appendChild(option);
+      });
+
+      // Update Custom Dropdown
+      const originOptionsContainer = document.getElementById("origin-options");
+      originOptionsContainer.innerHTML = "";
+      originList.forEach((origin) => {
+        const div = document.createElement("div");
+        div.className = "dropdown-option";
+        div.textContent = origin;
+        div.addEventListener("click", () => {
+          selectOption("origin", origin);
         });
+        originOptionsContainer.appendChild(div);
+      });
+    }
+
+    function selectOption(type, value) {
+      const dropdown = document.getElementById(`${type}-dropdown`);
+      const select = document.getElementById(type);
+      const selectedText = dropdown.querySelector(".selected-text");
+
+      // Update UI
+      selectedText.textContent = value;
+      dropdown.classList.remove("open");
+
+      // Highlight selected
+      dropdown.querySelectorAll(".dropdown-option").forEach((opt) => {
+        opt.classList.toggle("selected", opt.textContent === value);
+      });
+
+      // Update hidden select and trigger change
+      select.value = value;
+      select.dispatchEvent(new Event("change"));
     }
 
     function handleOriginChange() {
       const selectedOrigin = originSelect.value;
       destinationSelect.disabled = false;
+      destinationDropdown.classList.remove("disabled");
+
+      // Reset destination trigger
+      destinationDropdown.querySelector(".selected-text").textContent =
+        "เลือกปลายทาง";
 
       const destinations = new Set();
       scheduleData.forEach((item) => {
@@ -128,16 +199,32 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
+      const destinationList = Array.from(destinations).sort();
+
+      // Update hidden select
       destinationSelect.innerHTML =
         '<option value="" disabled selected>เลือกปลายทาง</option>';
-      Array.from(destinations)
-        .sort()
-        .forEach((dest) => {
-          const option = document.createElement("option");
-          option.value = dest;
-          option.textContent = dest;
-          destinationSelect.appendChild(option);
+      destinationList.forEach((dest) => {
+        const option = document.createElement("option");
+        option.value = dest;
+        option.textContent = dest;
+        destinationSelect.appendChild(option);
+      });
+
+      // Update Custom Dropdown
+      const destOptionsContainer = document.getElementById(
+        "destination-options",
+      );
+      destOptionsContainer.innerHTML = "";
+      destinationList.forEach((dest) => {
+        const div = document.createElement("div");
+        div.className = "dropdown-option";
+        div.textContent = dest;
+        div.addEventListener("click", () => {
+          selectOption("destination", dest);
         });
+        destOptionsContainer.appendChild(div);
+      });
 
       resultArea.innerHTML = `
             <div class="empty-state">
